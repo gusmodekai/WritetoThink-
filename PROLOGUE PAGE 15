@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Traducción: Biografía Deportiva</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .option-btn:disabled { cursor: not-allowed; opacity: 0.7; }
+        .correct { background-color: #10b981 !important; color: white; border-color: #059669; }
+        .incorrect { background-color: #ef4444 !important; color: white; border-color: #dc2626; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Test de Autoevaluación</h1>
+            <p class="text-gray-600">Basado en la sesión de traducción: "Del Sueño a la Realidad"</p>
+        </header>
+
+        <div id="quiz-container">
+            </div>
+
+        <div id="result-container" class="hidden text-center mt-10 p-6 bg-blue-50 rounded-lg">
+            <h2 class="text-2xl font-bold text-blue-800 mb-2">¡Test Finalizado!</h2>
+            <p id="score-text" class="text-xl text-blue-600 font-semibold"></p>
+            <button onclick="location.reload()" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition">Reiniciar Test</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                q: "Si quieres decir que alguien es 'campeón del mundo', ¿cuál es la opción correcta?",
+                options: ["World Championship", "World Champion", "Worldly Champion", "Champion of World"],
+                correct: 1,
+                rationale: "Se utiliza 'champion' para la persona; 'championship' es la competencia en sí."
+            },
+            {
+                q: "Para traducir 'la clave del éxito', ¿qué preposición es la más adecuada?",
+                options: ["The key of success", "The key for success", "The key to success", "The key on success"],
+                correct: 2,
+                rationale: "En inglés, 'key' se conecta con 'to' porque indica acceso a un resultado."
+            },
+            {
+                q: "¿Cómo se dice 'ya no' en una frase afirmativa como: 'Eso ya no era un juego'?",
+                options: ["It not longer was a game", "It was no longer a game", "It was not anymore a game", "It wasn't more a game"],
+                correct: 1,
+                rationale: "'No longer' después del verbo es la forma más narrativa y natural."
+            },
+            {
+                q: "En el contexto de metas y sueños, ¿cuál es el significado correcto de 'reach out'?",
+                options: ["Alcanzar un sueño", "Contactar con alguien", "Superar un obstáculo", "Entender un concepto"],
+                correct: 1,
+                rationale: "'Reach out' es para contacto social; para sueños usa 'achieve' o 'fulfill'."
+            },
+            {
+                q: "Para traducir 'veía a esos pilotos' (como hábito de infancia), ¿qué opción es mejor?",
+                options: ["I would watch", "I will watch", "I was watch", "I would to watch"],
+                correct: 0,
+                rationale: "'Would' se usa para hábitos repetidos en el pasado (equivalente a 'used to')."
+            },
+            {
+                q: "Para traducir 'hambre bestial' (ambición), ¿cuál es la mejor opción?",
+                options: ["Beast hungry", "Beastly hunger", "A beast of hungry", "Hunger of beast"],
+                correct: 1,
+                rationale: "Necesitas el adjetivo 'beastly' calificando al sustantivo 'hunger'."
+            },
+            {
+                q: "¿Cuál es la forma correcta de decir 'no estoy seguro'?",
+                options: ["I don't sure", "I'm not sure", "I not sure", "I doesn't sure"],
+                correct: 1,
+                rationale: "Con adjetivos de estado como 'sure', siempre usamos el verbo 'To Be'."
+            }
+        ];
+
+        let currentScore = 0;
+        const container = document.getElementById('quiz-container');
+
+        function loadQuiz() {
+            questions.forEach((question, qIndex) => {
+                const qDiv = document.createElement('div');
+                qDiv.className = "mb-12 p-4 border-b border-gray-100 last:border-0";
+                
+                let optionsHTML = '';
+                question.options.forEach((opt, oIndex) => {
+                    optionsHTML += `
+                        <button 
+                            onclick="checkAnswer(this, ${qIndex}, ${oIndex})" 
+                            class="option-btn block w-full text-left p-3 mb-2 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+                        >${opt}</button>
+                    `;
+                });
+
+                qDiv.innerHTML = `
+                    <p class="text-lg font-semibold text-gray-700 mb-4">${qIndex + 1}. ${question.q}</p>
+                    <div class="space-y-2">${optionsHTML}</div>
+                    <p id="rationale-${qIndex}" class="hidden mt-3 text-sm italic text-gray-600"></p>
+                `;
+                container.appendChild(qDiv);
+            });
+        }
+
+        function checkAnswer(btn, qIndex, oIndex) {
+            const parent = btn.parentElement;
+            const buttons = parent.querySelectorAll('button');
+            const rationaleText = document.getElementById(`rationale-${qIndex}`);
+            
+            buttons.forEach(b => b.disabled = true);
+
+            if (oIndex === questions[qIndex].correct) {
+                btn.classList.add('correct');
+                currentScore++;
+            } else {
+                btn.classList.add('incorrect');
+                buttons[questions[qIndex].correct].classList.add('correct');
+            }
+
+            rationaleText.innerText = questions[qIndex].rationale;
+            rationaleText.classList.remove('hidden');
+
+            checkIfFinished();
+        }
+
+        function checkIfFinished() {
+            const answered = document.querySelectorAll('.option-btn:disabled').length / 4;
+            if (answered === questions.length) {
+                const resultCont = document.getElementById('result-container');
+                const scoreText = document.getElementById('score-text');
+                resultCont.classList.remove('hidden');
+                scoreText.innerText = `Puntaje: ${currentScore} de ${questions.length}`;
+                resultCont.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        loadQuiz();
+    </script>
+</body>
+</html>
