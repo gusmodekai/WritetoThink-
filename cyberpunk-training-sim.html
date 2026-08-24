@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEO-SUPPORT :: TRAINING NET</title>
+<style>
+  :root{
+    --void:#08060f;
+    --panel:#120f20;
+    --panel-2:#191430;
+    --chrome-lo:#2b2b38;
+    --chrome-hi:#d7dbe4;
+    --text:#e8e6f0;
+    --text-dim:#8d89a6;
+    --accent:#ff2a6d;
+    --accent-rgb:255,42,109;
+    --ok:#39ff8f;
+    --warn:#ffcf3f;
+    --font-display:'Courier New', Courier, monospace;
+    --font-body:'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(var(--accent-rgb),0.10), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(5,217,232,0.08), transparent 45%),
+      var(--void);
+    color:var(--text);
+    font-family:var(--font-body);
+    font-size:16px;
+    line-height:1.5;
+    min-height:100vh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- scanline / crt overlay ---------- */
+  .crt-overlay{
+    pointer-events:none;
+    position:fixed; inset:0; z-index:999;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.028) 0px,
+      rgba(255,255,255,0.028) 1px,
+      transparent 2px,
+      transparent 3px
+    );
+    mix-blend-mode:overlay;
+    opacity:0.55;
+  }
+  .vignette{
+    pointer-events:none;
+    position:fixed; inset:0; z-index:998;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+  }
+
+  a{color:var(--accent);}
+
+  ::selection{ background:rgba(var(--accent-rgb),0.4); }
+
+  /* ---------- utility ---------- */
+  .hidden{ display:none !important; }
+  .mono{ font-family:var(--font-display); letter-spacing:0.04em; }
+
+  .glow-text{
+    color:var(--text);
+    text-shadow:0 0 6px rgba(var(--accent-rgb),0.75), 0 0 18px rgba(var(--accent-rgb),0.35);
+  }
+
+  button{
+    font-family:var(--font-display);
+    cursor:pointer;
+  }
+  button:focus-visible, textarea:focus-visible, .room-card:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:3px;
+  }
+
+  /* ---------- app shell ---------- */
+  #app{
+    max-width:1100px;
+    margin:0 auto;
+    padding:28px 20px 60px;
+    position:relative;
+    z-index:1;
+  }
+
+  header.top{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1px solid rgba(var(--accent-rgb),0.3);
+    padding-bottom:14px; margin-bottom:26px;
+    flex-wrap:wrap; gap:10px;
+  }
+  header.top .brand{
+    font-family:var(--font-display);
+    font-weight:700; font-size:22px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+  }
+  header.top .brand .accent{ color:var(--accent); }
+  header.top .tagline{
+    font-family:var(--font-display);
+    font-size:11px; color:var(--text-dim); letter-spacing:0.15em;
+    text-transform:uppercase;
+  }
+
+  /* glitch title */
+  .glitch{
+    position:relative;
+    display:inline-block;
+  }
+  .glitch::before, .glitch::after{
+    content:attr(data-text);
+    position:absolute; left:0; top:0; width:100%;
+    overflow:hidden; color:var(--text);
+  }
+  .glitch::before{
+    left:2px; text-shadow:-1px 0 var(--accent);
+    clip-path:inset(0 0 55% 0);
+    animation:glitch-a 3.4s infinite linear alternate-reverse;
+  }
+  .glitch::after{
+    left:-2px; text-shadow:-1px 0 #05d9e8;
+    clip-path:inset(45% 0 0 0);
+    animation:glitch-b 2.6s infinite linear alternate-reverse;
+  }
+  @keyframes glitch-a{
+    0%,92%,100%{ transform:translate(0,0); opacity:0; }
+    93%{ transform:translate(-2px,-1px); opacity:1; }
+    95%{ transform:translate(2px,1px); opacity:1; }
+    97%{ opacity:0; }
+  }
+  @keyframes glitch-b{
+    0%,90%,100%{ transform:translate(0,0); opacity:0; }
+    91%{ transform:translate(2px,1px); opacity:1; }
+    94%{ transform:translate(-1px,-1px); opacity:1; }
+    96%{ opacity:0; }
+  }
+
+  /* kana ambient background text */
+  .kana-bg{
+    position:absolute; z-index:-1; user-select:none; pointer-events:none;
+    font-family:var(--font-display);
+    color:rgba(255,255,255,0.035);
+    font-size:120px; font-weight:700; line-height:1;
+    top:-10px; right:0;
+  }
+
+  /* ---------- lobby ---------- */
+  #lobby-desc{
+    color:var(--text-dim); max-width:640px; margin-bottom:28px; font-size:14.5px;
+  }
+  .room-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr));
+    gap:18px;
+  }
+  .room-card{
+    position:relative;
+    background:linear-gradient(160deg, var(--panel) 0%, var(--panel-2) 100%);
+    border:1px solid var(--chrome-lo);
+    border-radius:4px;
+    padding:20px 18px 18px;
+    text-align:left;
+    color:var(--text);
+    overflow:hidden;
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    --card-accent:var(--accent);
+  }
+  .room-card::before{
+    content:'';
+    position:absolute; inset:0 0 auto 0; height:3px;
+    background:linear-gradient(90deg, var(--card-accent), transparent);
+  }
+  .room-card:hover, .room-card:focus-visible{
+    transform:translateY(-3px);
+    border-color:var(--card-accent);
+    box-shadow:0 0 0 1px var(--card-accent), 0 8px 26px -10px var(--card-accent);
+  }
+  .room-card .kana-tag{
+    font-family:var(--font-display); font-size:11px; color:var(--card-accent);
+    letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px; opacity:0.85;
+  }
+  .room-card h3{
+    margin:0 0 8px; font-family:var(--font-display); font-size:17px; letter-spacing:0.04em;
+  }
+  .room-card p{ margin:0 0 14px; font-size:13.5px; color:var(--text-dim); }
+  .room-card .meta{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--font-display); font-size:11px; color:var(--text-dim);
+    letter-spacing:0.08em; text-transform:uppercase;
+  }
+  .room-card .meta .dot{
+    display:inline-block; width:7px; height:7px; border-radius:50%;
+    background:var(--card-accent); margin-right:6px;
+    box-shadow:0 0 6px var(--card-accent);
+    animation:blink 1.6s infinite ease-in-out;
+  }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+
+  /* ---------- room view ---------- */
+  #room-view{ position:relative; }
+  .room-header{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--accent);
+    box-shadow:0 0 0 1px rgba(var(--accent-rgb),0.25), 0 0 24px -8px rgba(var(--accent-rgb),0.6);
+    border-radius:4px;
+    padding:14px 18px;
+    margin-bottom:16px;
+  }
+  .room-header .left{ display:flex; align-items:center; gap:10px; }
+  .room-header .status-dot{
+    width:9px; height:9px; border-radius:50%; background:var(--ok);
+    box-shadow:0 0 8px var(--ok); animation:blink 1.4s infinite ease-in-out;
+  }
+  .room-header h2{
+    margin:0; font-family:var(--font-display); font-size:16px; letter-spacing:0.06em;
+  }
+  .room-header .sub{ font-size:11px; color:var(--text-dim); font-family:var(--font-display); letter-spacing:0.1em;}
+  .back-btn{
+    background:transparent; border:1px solid var(--text-dim); color:var(--text-dim);
+    padding:6px 10px; border-radius:3px; font-size:11px; letter-spacing:0.08em;
+  }
+  .back-btn:hover{ border-color:var(--accent); color:var(--accent); }
+
+  /* chronometer */
+  .chrono{
+    font-family:var(--font-display);
+    background:#000;
+    border:1px solid var(--accent);
+    border-radius:3px;
+    padding:6px 12px;
+    color:var(--accent);
+    font-size:20px;
+    letter-spacing:0.08em;
+    text-shadow:0 0 8px rgba(var(--accent-rgb),0.8);
+    min-width:88px;
+    text-align:center;
+  }
+  .chrono-label{ font-size:9px; color:var(--text-dim); text-align:center; letter-spacing:0.14em; margin-top:3px; }
+
+  .progress-dots{ display:flex; gap:6px; }
+  .progress-dots span{
+    width:9px; height:9px; border-radius:50%; background:var(--chrome-lo); border:1px solid var(--text-dim);
+  }
+  .progress-dots span.done{ background:var(--ok); border-color:var(--ok); box-shadow:0 0 6px var(--ok); }
+  .progress-dots span.current{ background:var(--accent); border-color:var(--accent); box-shadow:0 0 6px var(--accent); }
+
+  /* chat log */
+  .chat-log{
+    background:repeating-linear-gradient(180deg, var(--panel) 0px, var(--panel) 2px, #0d0a18 2px, #0d0a18 4px);
+    background-color:var(--panel);
+    border:1px solid var(--chrome-lo);
+    border-radius:4px;
+    padding:18px;
+    min-height:220px;
+    max-height:46vh;
+    overflow-y:auto;
+    display:flex; flex-direction:column; gap:14px;
+    margin-bottom:14px;
+  }
+  .bubble{
+    max-width:78%;
+    padding:12px 14px;
+    border-radius:6px;
+    font-size:14.5px;
+    position:relative;
+    animation:fadein .25s ease;
+  }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  .bubble .tag{
+    display:block; font-family:var(--font-display); font-size:10px; letter-spacing:0.12em;
+    text-transform:uppercase; margin-bottom:5px; opacity:0.75;
+  }
+  .bubble.customer{
+    align-self:flex-start;
+    background:linear-gradient(160deg, #1c1930, #14111f);
+    border:1px solid var(--chrome-lo);
+    border-left:3px solid #05d9e8;
+    color:var(--text);
+  }
+  .bubble.customer .tag{ color:#05d9e8; }
+  .bubble.trainee{
+    align-self:flex-end;
+    background:linear-gradient(160deg, rgba(var(--accent-rgb),0.22), rgba(var(--accent-rgb),0.08));
+    border:1px solid var(--accent);
+    color:var(--text);
+  }
+  .bubble.trainee .tag{ color:var(--accent); }
+  .bubble.reference{
+    align-self:flex-start;
+    background:transparent;
+    border:1px dashed var(--text-dim);
+    color:var(--text-dim);
+    font-style:italic;
+  }
+  .bubble.reference .tag{ color:var(--warn); font-style:normal; }
+  .bubble .cursor{ display:inline-block; width:7px; height:14px; background:#05d9e8; vertical-align:-2px; animation:blink .8s infinite; margin-left:2px; }
+
+  /* input area */
+  .input-row{
+    display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;
+  }
+  textarea#answer-input{
+    flex:1 1 320px;
+    min-height:88px;
+    background:#0b0914;
+    border:1px solid var(--chrome-lo);
+    border-radius:4px;
+    color:var(--text);
+    font-family:var(--font-body);
+    font-size:15px;
+    padding:12px;
+    resize:vertical;
+  }
+  textarea#answer-input:focus{ border-color:var(--accent); }
+  .input-col{ display:flex; flex-direction:column; gap:8px; }
+  .send-btn{
+    background:var(--accent);
+    border:1px solid var(--accent);
+    color:#0b0914;
+    font-weight:700;
+    padding:12px 20px;
+    border-radius:4px;
+    font-size:13px;
+    letter-spacing:0.08em;
+    box-shadow:0 0 16px -4px rgba(var(--accent-rgb),0.9);
+  }
+  .send-btn:disabled{ opacity:0.35; cursor:not-allowed; box-shadow:none; }
+  .send-btn:not(:disabled):hover{ filter:brightness(1.1); }
+  .next-btn{
+    background:transparent; border:1px solid var(--ok); color:var(--ok);
+    padding:12px 20px; border-radius:4px; font-size:13px; letter-spacing:0.08em;
+  }
+  .next-btn:hover{ background:rgba(57,255,143,0.12); }
+  .char-count{ font-family:var(--font-display); font-size:11px; color:var(--text-dim); text-align:right; }
+  .reveal-btn{
+    background:transparent; border:1px solid var(--warn); color:var(--warn);
+    padding:7px 12px; border-radius:3px; font-size:11px; letter-spacing:0.06em; margin-top:2px; align-self:flex-start;
+  }
+  .reveal-btn:hover{ background:rgba(255,207,63,0.12); }
+
+  /* ---------- report ---------- */
+  .report-wrap{
+    background:linear-gradient(160deg, var(--panel-2), var(--panel));
+    border:1px solid var(--accent);
+    border-radius:6px;
+    padding:26px 24px;
+    box-shadow:0 0 30px -10px rgba(var(--accent-rgb),0.6);
+  }
+  .report-top{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;
+    border-bottom:1px solid var(--chrome-lo); padding-bottom:18px; margin-bottom:18px;
+  }
+  .rank-badge{
+    font-family:var(--font-display); font-size:56px; font-weight:900;
+    color:var(--accent);
+    text-shadow:0 0 12px rgba(var(--accent-rgb),0.85), 0 0 34px rgba(var(--accent-rgb),0.4);
+    line-height:1;
+  }
+  .rank-sub{ font-size:11px; color:var(--text-dim); letter-spacing:0.14em; text-align:center; margin-top:4px; font-family:var(--font-display); }
+  .stat-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:14px; margin-bottom:22px;
+  }
+  .stat-box{
+    background:#0b0914; border:1px solid var(--chrome-lo); border-radius:4px; padding:12px 14px;
+  }
+  .stat-box .val{ font-family:var(--font-display); font-size:24px; color:var(--accent); }
+  .stat-box .lbl{ font-size:10.5px; color:var(--text-dim); letter-spacing:0.1em; text-transform:uppercase; margin-top:4px;}
+  .report-section{ margin-bottom:20px; }
+  .report-section h4{
+    font-family:var(--font-display); font-size:12.5px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--warn); margin:0 0 10px; display:flex; align-items:center; gap:8px;
+  }
+  .report-section h4::before{ content:''; width:8px; height:8px; background:var(--warn); display:inline-block; box-shadow:0 0 6px var(--warn);}
+  .issue-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .issue-list li{
+    background:#0b0914; border-left:3px solid var(--warn); padding:9px 12px; border-radius:3px; font-size:13.5px; color:var(--text);
+  }
+  .issue-list.ok li{ border-left-color:var(--ok); color:var(--text-dim); }
+  .msg-breakdown{ display:flex; flex-direction:column; gap:10px; margin-bottom:22px; }
+  .msg-breakdown .row{
+    display:flex; justify-content:space-between; gap:10px; background:#0b0914; padding:10px 12px; border-radius:4px; border:1px solid var(--chrome-lo); font-size:13px; flex-wrap:wrap;
+  }
+  .msg-breakdown .row span.k{ color:var(--text-dim); }
+  .report-actions{ display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; }
+  .primary-btn{
+    background:var(--accent); border:1px solid var(--accent); color:#0b0914; font-weight:700;
+    padding:12px 22px; border-radius:4px; font-size:13px; letter-spacing:0.08em;
+  }
+  .ghost-btn{
+    background:transparent; border:1px solid var(--text-dim); color:var(--text-dim);
+    padding:12px 22px; border-radius:4px; font-size:13px; letter-spacing:0.08em;
+  }
+  .ghost-btn:hover{ color:var(--text); border-color:var(--text);}
+
+  footer.foot{
+    margin-top:36px; text-align:center; font-family:var(--font-display); font-size:10.5px; color:var(--text-dim);
+    letter-spacing:0.12em;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  @media (max-width:560px){
+    .rank-badge{ font-size:42px; }
+    .bubble{ max-width:92%; }
+    .kana-bg{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="crt-overlay" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<div id="app">
+
+  <header class="top">
+    <div>
+      <div class="brand glitch" data-text="NEO-SUPPORT::TRAINING NET">NEO-SUPPORT<span class="accent">::</span>TRAINING NET</div>
+      <div class="tagline">応答訓練システム — response training terminal — v2.6</div>
+    </div>
+    <div class="tagline" id="clock-widget">SYSTEM TIME —:—:—</div>
+  </header>
+
+  <!-- ============ LOBBY ============ -->
+  <section id="lobby">
+    <span class="kana-bg" aria-hidden="true">練習</span>
+    <p id="lobby-desc">Jack into a support channel. Live customer traffic will hit your terminal — type your own reply before the chronometer runs hot. Every room grades your grammar, vocabulary and typing accuracy when the session ends.</p>
+    <div class="room-grid" id="room-grid"></div>
+  </section>
+
+  <!-- ============ ROOM ============ -->
+  <section id="room-view" class="hidden">
+    <div class="room-header">
+      <div class="left">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+          <h2 id="room-title" class="mono"></h2>
+          <div class="sub" id="room-sub"></div>
+        </div>
+      </div>
+      <div class="progress-dots" id="progress-dots"></div>
+      <div>
+        <div class="chrono" id="chrono">00:00</div>
+        <div class="chrono-label">RESPONSE TIMER</div>
+      </div>
+      <button class="back-btn" id="back-btn">&larr; EXIT ROOM</button>
+    </div>
+
+    <div class="chat-log" id="chat-log" aria-live="polite"></div>
+
+    <div class="input-row" id="input-row">
+      <div style="flex:1 1 320px; display:flex; flex-direction:column; gap:6px;">
+        <textarea id="answer-input" placeholder="Type your reply to the customer here..." aria-label="Your response"></textarea>
+        <div class="char-count" id="char-count">0 words · 0 chars</div>
+      </div>
+      <div class="input-col">
+        <button class="send-btn" id="send-btn" disabled>SEND ▸</button>
+        <button class="next-btn hidden" id="next-btn">NEXT MESSAGE ▸</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REPORT ============ -->
+  <section id="report-view" class="hidden">
+    <div class="report-wrap">
+      <div class="report-top">
+        <div>
+          <div class="rank-badge" id="rank-badge">A</div>
+          <div class="rank-sub">SESSION RANK</div>
+        </div>
+        <div>
+          <h2 class="mono" id="report-title" style="margin:0 0 6px;">SESSION COMPLETE</h2>
+          <div class="sub mono" id="report-sub" style="color:var(--text-dim); font-size:12px;"></div>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="stat-grid"></div>
+
+      <div class="report-section">
+        <h4>Grammar Diagnostics</h4>
+        <ul class="issue-list" id="grammar-list"></ul>
+      </div>
+
+      <div class="report-section">
+        <h4>Vocabulary Diagnostics</h4>
+        <ul class="issue-list" id="vocab-list"></ul>
+      </div>
+
+      <div class="report-section">
+        <h4>Per-message Breakdown</h4>
+        <div class="msg-breakdown" id="msg-breakdown"></div>
+      </div>
+
+      <div class="report-actions">
+        <button class="primary-btn" id="retry-btn">RETRY ROOM</button>
+        <button class="ghost-btn" id="lobby-btn">◂ BACK TO LOBBY</button>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">TERMINAL ID: TRN-0X4F — UNAUTHORIZED DISCONNECTS ARE LOGGED — STAY SHARP</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===================== DATA ===================== */
+  const ROOMS = [
+    {
+      id:'cs', name:'CUSTOMER SERVICE', kana:'苦情対応室', accent:'#ff2a6d', accentRgb:'255,42,109',
+      desc:'De-escalate an order delayed five days and hold the line on policy.',
+      vocab:['apologize','understand','refund','compensation','tracking','resolve','delay','update'],
+      slang:['gonna','wanna','yeah','u ',' ur ','plz','thx','kinda'],
+      messages:[
+        { customer:"Hi, this is honestly ridiculous. My order #48213 was supposed to arrive 5 DAYS ago and I still have nothing. What is going on??",
+          sample:"I'm sorry for the frustration this delay has caused, and I understand how important this order is to you. I've pulled up order #48213 and I can see it's currently held at a regional hub. Let me get you an updated delivery estimate and look into what caused the delay right away." },
+        { customer:"Okay well an apology doesn't get my package here. Can I at least get a refund on the shipping cost, or some kind of compensation for the wait?",
+          sample:"That's completely fair. Since the delay is on our end, I'll refund your shipping cost in full, and I'd like to add a store credit for the inconvenience. You should see the refund reflected within 3-5 business days, and I'll email you the credit code today." },
+        { customer:"Alright, I appreciate that. Can you at least tell me exactly when it's going to arrive now?",
+          sample:"Of course. Based on the current tracking status, your package is expected to arrive within 2 business days. I'll also flag this shipment for priority handling and send you a confirmation email with the updated tracking link so you can follow it in real time." }
+      ]
+    },
+    {
+      id:'tech', name:'TECH SUPPORT', kana:'技術支援室', accent:'#05d9e8', accentRgb:'5,217,232',
+      desc:'Walk a frustrated user through a dropping Wi-Fi connection, step by step.',
+      vocab:['router','reset','firmware','reconnect','troubleshoot','signal','network','update','restart'],
+      slang:['gonna','wanna','yeah','u ',' ur ','plz','thx','kinda'],
+      messages:[
+        { customer:"My wifi keeps disconnecting every few minutes and it's driving me insane. Can you help??",
+          sample:"That sounds really frustrating, let's get this fixed. First, can you check how many devices are connected to your network right now, and whether the disconnects happen on all of them or just one device? That will help me narrow down the cause." },
+        { customer:"I already restarted the router twice, it didn't help at all.",
+          sample:"Thanks for trying that already. Let's rule out interference next: could you move the router away from other electronics like microwaves or cordless phones, and check if you're on the 2.4GHz or 5GHz band? Switching to the other band can sometimes resolve intermittent drops." },
+        { customer:"Okay it's on 2.4GHz. Is there anything else I should check, like a firmware update or something?",
+          sample:"Good thinking. Yes, please check your router's admin panel for a pending firmware update and install it if available, since outdated firmware is a common cause of random disconnects. After updating, restart the router once more and monitor the connection for about 15 minutes." }
+      ]
+    },
+    {
+      id:'health', name:'HEALTHCARE CLAIMS', kana:'医療請求室', accent:'#a45ee5', accentRgb:'164,94,229',
+      desc:'Guide a patient calmly through filing an insurance claim after an ER visit.',
+      vocab:['claim','insurance','documentation','policy','coverage','reimbursement','provider','deductible'],
+      slang:['gonna','wanna','yeah','u ',' ur ','plz','thx','kinda'],
+      messages:[
+        { customer:"Hi, I went to the ER last week and I have no idea how to file a claim with my insurance. Can you walk me through it?",
+          sample:"Of course, I'll walk you through it step by step. First, you'll need the itemized bill from the hospital along with your insurance policy number. Do you have both of those on hand, or would you like me to explain where to find them?" },
+        { customer:"I have the bill but I'm not sure what other documents I need. What exactly should I submit?",
+          sample:"Good question. Along with the itemized bill, please include the ER discharge summary and your insurance ID card details. Once you have those, you can upload them through the claims portal or mail them in, and I'll make sure your claim is logged today." },
+        { customer:"Thanks. How long does it usually take before I hear back about my claim status?",
+          sample:"Most claims are reviewed within 10 to 14 business days. You'll receive an Explanation of Benefits by email once it's processed, and you can also check the live status anytime in your online account. I'll note your file so you get a priority review given the ER visit." }
+      ]
+    },
+    {
+      id:'mixtiles', name:'MIXTILES SUPPORT', kana:'ミックスタイル室', accent:'#ff9f1c', accentRgb:'255,159,28',
+      desc:'Handle real Mixtiles FAQ topics: adhesion, refunds, sizes, and shipping.',
+      vocab:['adhesive','refund','return','size','courier','shipping','replacement','wall','order'],
+      slang:['gonna','wanna','yeah','u ',' ur ','plz','thx','kinda'],
+      messages:[
+        { customer:"Hey, my Mixtiles keep falling off the wall, the adhesive isn't sticking at all. What do I do?",
+          sample:"Sorry to hear that! It usually happens when the wall surface is textured, cold, or slightly dusty. Try cleaning the spot with a dry cloth and pressing firmly for 30 seconds. If they still won't hold, I'll send you a free replacement adhesive strip set right away." },
+        { customer:"I've tried that and it's still not working, honestly I just want a refund at this point.",
+          sample:"That's completely understandable. I can process a full refund or a free reprint, whichever you prefer. If you'd like the refund, it will be returned to your original payment method within 5-7 business days once I confirm the order details with you." },
+        { customer:"Okay, separate question — what sizes do you offer, and which courier do you ship with? I'm not sure if you deliver to my country.",
+          sample:"Mixtiles come in three sizes: Original (8x8in), Bold (16x16in), and Panorama (16x40in). We ship internationally via trusted couriers like UPS, DHL, and local postal partners depending on your region, so I can confirm exact delivery options once I have your shipping country." }
+      ]
+    },
+    {
+      id:'sales', name:'PRODUCT FEEDBACK & SALES', kana:'営業商談室', accent:'#39ff14', accentRgb:'57,255,20',
+      desc:'Field pricing questions, a feature complaint, and a demo request from a lead.',
+      vocab:['pricing','plan','feature','demo','upgrade','value','feedback','subscription','trial'],
+      slang:['gonna','wanna','yeah','u ',' ur ','plz','thx','kinda'],
+      messages:[
+        { customer:"Hi, I'm comparing plans before I commit. Can you break down what I actually get if I upgrade from the free tier?",
+          sample:"Happy to help you compare. The paid plan adds unlimited projects, priority support, and advanced analytics, versus the 3-project cap on the free tier. Most teams your size see it pay for itself within the first month through the time saved on reporting." },
+        { customer:"Honestly the export feature is really clunky, it crashed twice yesterday. That's a big concern for me.",
+          sample:"Thank you for flagging that, and I'm sorry it crashed on you. I'm logging this as a priority bug for our engineering team right now. In the meantime, exporting in smaller batches should avoid the crash, and I'll personally follow up once the fix ships." },
+        { customer:"Alright, that's good to know. Could I get a live demo before I make a final decision?",
+          sample:"Absolutely, I'd love to show you around. I can set up a 20-minute live demo this week focused on the features you care about most, exports and analytics. Would tomorrow afternoon or Thursday morning work better for your schedule?" }
+      ]
+    }
+  ];
+
+  /* ===================== STATE ===================== */
+  let state = null; // per-room session state
+
+  /* ===================== HELPERS ===================== */
+  function $(sel){ return document.querySelector(sel); }
+  function el(tag, cls, html){
+    const e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(html !== undefined) e.innerHTML = html;
+    return e;
+  }
+  function fmtTime(ms){
+    const total = Math.max(0, Math.floor(ms/1000));
+    const m = String(Math.floor(total/60)).padStart(2,'0');
+    const s = String(total%60).padStart(2,'0');
+    return m+':'+s;
+  }
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  /* ===================== SYSTEM CLOCK ===================== */
+  function tickClock(){
+    const now = new Date();
+    $('#clock-widget').textContent = 'SYSTEM TIME ' + now.toTimeString().slice(0,8);
+  }
+  tickClock(); setInterval(tickClock, 1000);
+
+  /* ===================== LOBBY RENDER ===================== */
+  function renderLobby(){
+    const grid = $('#room-grid');
+    grid.innerHTML = '';
+    ROOMS.forEach(room=>{
+      const card = el('button','room-card');
+      card.style.setProperty('--card-accent', room.accent);
+      card.setAttribute('type','button');
+      card.innerHTML = `
+        <div class="kana-tag">${room.kana}</div>
+        <h3>${room.name}</h3>
+        <p>${room.desc}</p>
+        <div class="meta"><span><span class="dot"></span>LIVE CHANNEL</span><span>3 MSG</span></div>
+      `;
+      card.addEventListener('click', ()=> startRoom(room.id));
+      grid.appendChild(card);
+    });
+  }
+
+  /* ===================== ROOM FLOW ===================== */
+  function startRoom(roomId){
+    const room = ROOMS.find(r=>r.id===roomId);
+    state = {
+      room,
+      msgIndex:0,
+      results:[], // {text, elapsedMs, keystrokes}
+      keystrokeCount:0,
+      startTime:0,
+      answered:false
+    };
+    document.documentElement.style.setProperty('--accent', room.accent);
+    document.documentElement.style.setProperty('--accent-rgb', room.accentRgb);
+
+    $('#lobby').classList.add('hidden');
+    $('#report-view').classList.add('hidden');
+    $('#room-view').classList.remove('hidden');
+
+    $('#room-title').textContent = room.name;
+    $('#room-sub').textContent = room.kana + ' — CHANNEL SECURE';
+    $('#chat-log').innerHTML = '';
+    renderProgressDots();
+    presentCustomerMessage();
+  }
+
+  function renderProgressDots(){
+    const wrap = $('#progress-dots');
+    wrap.innerHTML = '';
+    state.room.messages.forEach((_, i)=>{
+      const dot = el('span');
+      if(i < state.msgIndex) dot.classList.add('done');
+      else if(i === state.msgIndex) dot.classList.add('current');
+      wrap.appendChild(dot);
+    });
+  }
+
+  function presentCustomerMessage(){
+    const msg = state.room.messages[state.msgIndex];
+    const bubble = el('div','bubble customer');
+    bubble.innerHTML = `<span class="tag">Customer // incoming</span><span class="txt"></span><span class="cursor"></span>`;
+    $('#chat-log').appendChild(bubble);
+    $('#chat-log').scrollTop = $('#chat-log').scrollHeight;
+
+    // typewriter reveal
+    const txtSpan = bubble.querySelector('.txt');
+    const cursor = bubble.querySelector('.cursor');
+    let i = 0;
+    const full = msg.customer;
+    const speed = 14;
+    function type(){
+      if(i <= full.length){
+        txtSpan.textContent = full.slice(0,i);
+        i++;
+        $('#chat-log').scrollTop = $('#chat-log').scrollHeight;
+        setTimeout(type, speed);
+      } else {
+        cursor.remove();
+        beginTimer();
+      }
+    }
+    type();
+
+    // reset input state
+    const input = $('#answer-input');
+    input.value = '';
+    input.disabled = false;
+    updateCharCount();
+    $('#send-btn').disabled = true;
+    $('#send-btn').classList.remove('hidden');
+    $('#next-btn').classList.add('hidden');
+    state.keystrokeCount = 0;
+    state.answered = false;
+    setTimeout(()=> input.focus(), 50);
+  }
+
+  let chronoInterval = null;
+  function beginTimer(){
+    state.startTime = Date.now();
+    updateChrono();
+    clearInterval(chronoInterval);
+    chronoInterval = setInterval(updateChrono, 200);
+  }
+  function updateChrono(){
+    $('#chrono').textContent = fmtTime(Date.now() - state.startTime);
+  }
+  function stopTimer(){
+    clearInterval(chronoInterval);
+  }
+
+  function updateCharCount(){
+    const val = $('#answer-input').value;
+    const words = val.trim().length ? val.trim().split(/\s+/).length : 0;
+    $('#char-count').textContent = words + ' words · ' + val.length + ' chars';
+    $('#send-btn').disabled = val.trim().length === 0 || state.answered;
+  }
+
+  $('#answer-input').addEventListener('input', updateCharCount);
+  $('#answer-input').addEventListener('keydown', function(e){
+    const ignore = ['Tab','Shift','Control','Alt','Meta','CapsLock','Escape',
+      'ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'];
+    if(!ignore.includes(e.key)){
+      state.keystrokeCount++;
+    }
+    if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+      e.preventDefault();
+      if(!$('#send-btn').disabled) submitAnswer();
+    }
+  });
+
+  $('#send-btn').addEventListener('click', submitAnswer);
+
+  function submitAnswer(){
+    if(state.answered) return;
+    stopTimer();
+    const elapsedMs = Date.now() - state.startTime;
+    const text = $('#answer-input').value.trim();
+    state.answered = true;
+
+    state.results.push({
+      text,
+      elapsedMs,
+      keystrokes: Math.max(state.keystrokeCount, text.length)
+    });
+
+    // render trainee bubble
+    const tBubble = el('div','bubble trainee');
+    tBubble.innerHTML = `<span class="tag">You // sent · ${fmtTime(elapsedMs)}</span><span>${escapeHtml(text)}</span>`;
+    $('#chat-log').appendChild(tBubble);
+
+    // reveal reference bubble (toggle)
+    const msg = state.room.messages[state.msgIndex];
+    const refBubble = el('div','bubble reference');
+    refBubble.innerHTML = `<span class="tag">Reference_data.txt</span><div class="ref-body hidden"></div>`;
+    const revealBtn = el('button','reveal-btn','SHOW SUGGESTED RESPONSE');
+    refBubble.querySelector('.ref-body').textContent = msg.sample;
+    revealBtn.addEventListener('click', ()=>{
+      refBubble.querySelector('.ref-body').classList.toggle('hidden');
+      revealBtn.textContent = refBubble.querySelector('.ref-body').classList.contains('hidden')
+        ? 'SHOW SUGGESTED RESPONSE' : 'HIDE SUGGESTED RESPONSE';
+    });
+    refBubble.appendChild(revealBtn);
+    $('#chat-log').appendChild(refBubble);
+    $('#chat-log').scrollTop = $('#chat-log').scrollHeight;
+
+    $('#answer-input').disabled = true;
+    $('#send-btn').classList.add('hidden');
+    $('#next-btn').classList.remove('hidden');
+    renderProgressDots();
+  }
+
+  $('#next-btn').addEventListener('click', function(){
+    if(state.msgIndex < state.room.messages.length - 1){
+      state.msgIndex++;
+      renderProgressDots();
+      presentCustomerMessage();
+    } else {
+      showReport();
+    }
+  });
+
+  $('#back-btn').addEventListener('click', function(){
+    stopTimer();
+    $('#room-view').classList.add('hidden');
+    $('#report-view').classList.add('hidden');
+    $('#lobby').classList.remove('hidden');
+  });
+
+  /* ===================== TEXT ANALYSIS ===================== */
+  function analyzeText(text, room){
+    const grammar = [];
+    const vocab = [];
+
+    if(!text){
+      grammar.push('No response was entered for this message.');
+      return { grammar, vocab };
+    }
+
+    // capitalization
+    if(text[0] !== text[0].toUpperCase()){
+      grammar.push('Start your sentence with a capital letter, e.g. "' + text[0].toUpperCase() + text.slice(1,12) + '..."');
+    }
+    // ending punctuation
+    if(!/[.!?]["')\]]?$/.test(text.trim())){
+      grammar.push('End your message with proper punctuation (. ! or ?).');
+    }
+    // double spaces
+    if(/ {2,}/.test(text)){
+      grammar.push('Remove extra double spaces between words.');
+    }
+    // repeated word
+    const repeatMatch = text.match(/\b(\w+)\s+\1\b/i);
+    if(repeatMatch){
+      grammar.push('Repeated word detected: "' + repeatMatch[1] + ' ' + repeatMatch[1] + '".');
+    }
+    // lowercase standalone "i"
+    if(/\bi\b/.test(text)){
+      grammar.push('Capitalize the pronoun "I" when used alone.');
+    }
+    // missing space after punctuation
+    if(/[.,!?][A-Za-z]/.test(text)){
+      grammar.push('Add a space after punctuation marks (e.g. "Hi,there" → "Hi, there").');
+    }
+
+    // slang / informal
+    const lower = ' ' + text.toLowerCase() + ' ';
+    room.slang.forEach(s=>{
+      if(lower.includes(s)){
+        vocab.push('Avoid casual language like "' + s.trim() + '" — use a professional alternative.');
+      }
+    });
+
+    // industry vocabulary presence
+    const hasVocab = room.vocab.some(v => lower.includes(v.toLowerCase()));
+    if(!hasVocab){
+      vocab.push('Try weaving in more industry terms, e.g. ' + room.vocab.slice(0,4).join(', ') + '.');
+    }
+
+    // word count sanity
+    const wc = text.trim().split(/\s+/).filter(Boolean).length;
+    if(wc < 6){
+      grammar.push('Response is quite short — aim for a fuller, more complete sentence.');
+    }
+
+    return { grammar, vocab };
+  }
+
+  /* ===================== REPORT ===================== */
+  function showReport(){
+    stopTimer();
+    $('#room-view').classList.add('hidden');
+    $('#report-view').classList.remove('hidden');
+
+    const room = state.room;
+    let allGrammar = [], allVocab = [];
+    let totalWpm = 0, totalAccuracy = 0;
+    const breakdownRows = [];
+
+    state.results.forEach((res, i)=>{
+      const { grammar, vocab } = analyzeText(res.text, room);
+      grammar.forEach(g => allGrammar.push('Msg ' + (i+1) + ': ' + g));
+      vocab.forEach(v => allVocab.push('Msg ' + (i+1) + ': ' + v));
+
+      const words = res.text.trim().length ? res.text.trim().split(/\s+/).length : 0;
+      const minutes = Math.max(res.elapsedMs/60000, 0.05);
+      const wpm = Math.round(words/minutes);
+      const accuracy = Math.min(100, Math.round((res.text.length / Math.max(res.keystrokes,1)) * 100));
+
+      totalWpm += wpm;
+      totalAccuracy += accuracy;
+
+      breakdownRows.push({
+        idx:i+1, time:fmtTime(res.elapsedMs), wpm, accuracy, words
+      });
+    });
+
+    const n = state.results.length || 1;
+    const avgWpm = Math.round(totalWpm/n);
+    const avgAccuracy = Math.round(totalAccuracy/n);
+    const issueCount = allGrammar.length + allVocab.length;
+
+    // composite score -> rank
+    const wpmScore = Math.min(avgWpm, 60) / 60 * 100;
+    const issuesPenalty = Math.max(0, 100 - issueCount*9);
+    const composite = (avgAccuracy*0.45) + (wpmScore*0.3) + (issuesPenalty*0.25);
+    let rank = 'D';
+    if(composite >= 90) rank = 'S';
+    else if(composite >= 78) rank = 'A';
+    else if(composite >= 62) rank = 'B';
+    else if(composite >= 45) rank = 'C';
+
+    $('#rank-badge').textContent = rank;
+    $('#report-title').textContent = room.name + ' — SESSION COMPLETE';
+    $('#report-sub').textContent = 'CHANNEL: ' + room.kana + '  //  COMPOSITE SCORE: ' + Math.round(composite) + '/100';
+
+    const statGrid = $('#stat-grid');
+    statGrid.innerHTML = '';
+    const stats = [
+      { val: avgWpm, lbl:'AVG WORDS / MIN' },
+      { val: avgAccuracy + '%', lbl:'TYPING ACCURACY' },
+      { val: fmtTime(state.results.reduce((a,r)=>a+r.elapsedMs,0)), lbl:'TOTAL RESPONSE TIME' },
+      { val: issueCount, lbl:'TOTAL ISSUES FLAGGED' }
+    ];
+    stats.forEach(s=>{
+      const box = el('div','stat-box');
+      box.innerHTML = `<div class="val">${s.val}</div><div class="lbl">${s.lbl}</div>`;
+      statGrid.appendChild(box);
+    });
+
+    const gList = $('#grammar-list');
+    gList.innerHTML = '';
+    gList.className = 'issue-list' + (allGrammar.length ? '' : ' ok');
+    if(allGrammar.length){
+      allGrammar.forEach(g => gList.appendChild(el('li',null,g)));
+    } else {
+      gList.appendChild(el('li',null,'No grammar issues detected. Clean output across all messages.'));
+    }
+
+    const vList = $('#vocab-list');
+    vList.innerHTML = '';
+    vList.className = 'issue-list' + (allVocab.length ? '' : ' ok');
+    if(allVocab.length){
+      allVocab.forEach(v => vList.appendChild(el('li',null,v)));
+    } else {
+      vList.appendChild(el('li',null,'Strong use of industry vocabulary throughout — no flags.'));
+    }
+
+    const breakdown = $('#msg-breakdown');
+    breakdown.innerHTML = '';
+    breakdownRows.forEach(r=>{
+      const row = el('div','row');
+      row.innerHTML = `<span><span class="k">Msg ${r.idx}</span></span>
+        <span><span class="k">Time:</span> ${r.time}</span>
+        <span><span class="k">WPM:</span> ${r.wpm}</span>
+        <span><span class="k">Accuracy:</span> ${r.accuracy}%</span>
+        <span><span class="k">Words:</span> ${r.words}</span>`;
+      breakdown.appendChild(row);
+    });
+  }
+
+  $('#retry-btn').addEventListener('click', function(){
+    startRoom(state.room.id);
+  });
+  $('#lobby-btn').addEventListener('click', function(){
+    $('#report-view').classList.add('hidden');
+    $('#lobby').classList.remove('hidden');
+    document.documentElement.style.setProperty('--accent', '#ff2a6d');
+    document.documentElement.style.setProperty('--accent-rgb', '255,42,109');
+  });
+
+  /* ===================== INIT ===================== */
+  renderLobby();
+})();
+</script>
+</body>
+</html>
