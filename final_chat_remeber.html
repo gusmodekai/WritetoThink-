@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoType // Arcade Drill v3.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060810;
+            --surface: #10121e;
+            --surface-border: #262c42;
+            --surface-hover: #1a1f33;
+            --accent: #00e5ff;
+            --accent-hover: #37f2ff;
+            --accent-glow: rgba(0, 229, 255, 0.28);
+            --accent2: #b967ff;
+            --accent2-glow: rgba(185, 103, 255, 0.3);
+            --danger: #ff3860;
+            --danger-glow: rgba(255, 56, 96, 0.3);
+            --success: #00ffa3;
+            --success-glow: rgba(0, 255, 163, 0.3);
+            --warning: #ffcb47;
+            --text-main: #eef1ff;
+            --text-muted: #8991b3;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(circle at 15% 10%, rgba(0, 229, 255, 0.12), transparent 40%),
+                radial-gradient(circle at 85% 90%, rgba(185, 103, 255, 0.14), transparent 45%),
+                linear-gradient(180deg, #05060c 0%, #090b14 100%);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.015) 0px,
+                rgba(255, 255, 255, 0.015) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            z-index: 1;
+            mix-blend-mode: overlay;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 820px;
+            background: linear-gradient(180deg, var(--surface) 0%, #0c0e18 100%);
+            border: 1px solid var(--surface-border);
+            border-radius: 18px;
+            padding: 2rem;
+            box-shadow:
+                0 25px 60px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+                0 0 80px rgba(0, 229, 255, 0.06);
+            position: relative;
+            z-index: 2;
+            animation: containerIn 0.5s ease;
+        }
+
+        @keyframes containerIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Header & Arcade Status Bar */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.75rem;
+            border-bottom: 1px solid var(--surface-border);
+            padding-bottom: 1rem;
+        }
+
+        .logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            align-items: center;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--surface-border);
+            border-radius: 6px;
+            padding: 0.35rem 0.6rem;
+        }
+
+        .stat-item span {
+            color: var(--text-muted);
+        }
+
+        .stat-item b {
+            color: var(--accent);
+        }
+
+        .lives-display {
+            color: var(--danger);
+            letter-spacing: 0.2em;
+            font-size: 1.1rem;
+            text-shadow: 0 0 10px var(--danger-glow);
+            display: inline-block;
+        }
+
+        .lives-display .heart {
+            display: inline-block;
+            animation: heartbeat 1.6s ease-in-out infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* Setup Screen */
+        .setup-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        textarea, select {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--surface-border);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 180px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent), #0091a8);
+            color: #04141a;
+            border: none;
+            border-radius: 8px;
+            padding: 0.9rem 1.25rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            font-family: 'Inter', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 14px rgba(0, 229, 255, 0.18);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px var(--accent-glow), 0 0 0 1px var(--accent-glow) inset;
+        }
+
+        .btn:active {
+            transform: scale(0.98) translateY(0);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent2);
+            border: 1px solid rgba(185, 103, 255, 0.45);
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(185, 103, 255, 0.1);
+            box-shadow: 0 0 16px var(--accent2-glow);
+            transform: translateY(-2px);
+        }
+
+        /* Chat History Box (Top Area) */
+        .chat-flow {
+            background: var(--bg);
+            border: 1px solid var(--surface-border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            scroll-behavior: smooth;
+        }
+
+        .chat-flow::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-flow::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-flow::-webkit-scrollbar-thumb {
+            background: var(--surface-border);
+            border-radius: 8px;
+        }
+
+        .chat-flow::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        .msg-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            max-width: 90%;
+        }
+
+        .msg-container.customer {
+            align-self: flex-start;
+        }
+
+        .msg-container.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .msg-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .msg {
+            padding: 1rem 1.25rem;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            word-break: break-word;
+            animation: msgIn 0.25s ease;
+        }
+
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg.customer {
+            background: var(--surface-hover);
+            border: 1px solid var(--surface-border);
+            color: var(--text-main);
+            border-bottom-left-radius: 2px;
+        }
+
+        .msg.user {
+            background: linear-gradient(135deg, var(--accent2), #6a3fd0);
+            color: #fff;
+            border-bottom-right-radius: 2px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 16px var(--accent2-glow);
+        }
+
+        /* Active Stage Box (Bottom Input Area) */
+        .active-stage-box {
+            background: var(--bg);
+            border: 1px solid var(--surface-border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.015) inset;
+        }
+
+        .customer-prompt-display {
+            font-size: 1.05rem;
+            font-weight: 500;
+            line-height: 1.5;
+            color: #fff;
+            margin-bottom: 1rem;
+            padding-left: 0.75rem;
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Hidden answer helper box that toggles via Show Me button (free to use) */
+        .reveal-box {
+            display: none;
+            background: rgba(185, 103, 255, 0.08);
+            border: 1px dashed var(--accent2);
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            margin-bottom: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #d5b3ff;
+            animation: msgIn 0.2s ease;
+        }
+
+        .reveal-box.active {
+            display: block;
+        }
+
+        .input-toolbar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        textarea.user-input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 8px;
+            padding: 0.9rem 1rem;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            min-height: 75px;
+            resize: vertical;
+            transition: all 0.2s ease;
+        }
+
+        textarea.user-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-width: 170px;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 13, 20, 0.85);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: linear-gradient(180deg, var(--surface) 0%, #0c0e18 100%);
+            border: 1px solid var(--surface-border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 520px;
+            padding: 2.25rem;
+            text-align: center;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.7);
+            transform: translateY(15px) scale(0.98);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal.error { border-color: var(--danger); box-shadow: 0 0 45px var(--danger-glow); }
+        .modal.gameover { border-color: var(--danger); box-shadow: 0 0 55px var(--danger-glow); }
+        .modal.victory { border-color: var(--success); box-shadow: 0 0 55px var(--success-glow); }
+
+        .modal h2 {
+            font-size: 1.35rem;
+            margin-bottom: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .modal.error h2 { color: var(--danger); }
+        .modal.gameover h2 { color: var(--danger); }
+        .modal.victory h2 { color: var(--success); }
+
+        .modal p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1.25rem;
+        }
+
+        .comparison-box {
+            background: var(--bg);
+            border: 1px dashed var(--surface-border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-align: left;
+            word-break: break-word;
+        }
+
+        .comparison-box b {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        @media(max-width: 768px) {
+            .input-toolbar {
+                flex-direction: column;
+            }
+            .action-buttons {
+                width: 100%;
+                flex-direction: row;
+            }
+            .action-buttons button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">EchoType // Arcade Drill v3.0</div>
+            <div class="stats" id="statsBar" style="display: none;">
+                <div class="stat-item"><span>STAGE:</span> <b id="checkpointIndicator">CP 1</b></div>
+                <div class="stat-item"><span>STEP:</span> <b id="stepCounter">1/1</b></div>
+                <div class="stat-item"><span class="lives-display" id="livesDisplay">♥♥♥</span></div>
+            </div>
+        </div>
+
+        <!-- Setup Screen -->
+        <div id="setupScreen" class="screen active">
+            <div class="setup-group">
+                <label for="scriptInput">Script Lines (Alternating: Customer Dialog, then Expected Agent Response)</label>
+                <textarea id="scriptInput" placeholder="Enter alternating script lines..."></textarea>
+            </div>
+            <button class="btn" style="width: 100%;" onclick="startDrill()">INITIALIZE ARCADE DRILL</button>
+        </div>
+
+        <!-- Drill Screen -->
+        <div id="drillScreen" class="screen">
+            <!-- Top History Chat Log -->
+            <div class="chat-flow" id="chatFlow">
+                <!-- Chat history rendered dynamically -->
+            </div>
+
+            <!-- Active Bottom Prompt Box -->
+            <div class="active-stage-box">
+                <div class="msg-label" style="margin-bottom: 0.4rem;">Incoming Customer Dialog</div>
+                <div class="customer-prompt-display" id="activePromptText"></div>
+
+                <!-- Hidden Answer Reveal Box (Toggled via Show Me button) -->
+                <div class="reveal-box" id="revealBox">
+                    <span style="font-size: 0.75rem; text-transform: uppercase; display: block; margin-bottom: 0.25rem; color: var(--accent);">Target Answer (Show Me):</span>
+                    <span id="revealText"></span>
+                </div>
+
+                <div class="input-toolbar">
+                    <textarea class="user-input" id="userInputField" placeholder="Type your precise agent response here... (Press Ctrl+Enter to submit)" onkeydown="handleKey(event)"></textarea>
+                    <div class="action-buttons">
+                        <button class="btn" onclick="submitAnswer()">SUBMIT</button>
+                        <button class="btn btn-secondary" onclick="toggleReveal()">SHOW ME</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Popup System -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal error" id="modalBox">
+            <h2 id="modalTitle">GRAMMAR / TEXT MISMATCH</h2>
+            <p id="modalDesc">Your input contained discrepancies compared to the target text.</p>
+            <div class="comparison-box" id="modalContent"></div>
+            <button class="btn" id="modalBtn" onclick="closeModal()">CONTINUE</button>
+        </div>
+    </div>
+
+    <script>
+        const defaultScript = "Hi, I'm calling about a discrepancy on my latest invoice. There seems to be an extra charge I don't understand.\nHello, you've reached CloudNet billing department. This is Tom speaking; how may I assist you today?\nThere's a charge for $49.99 labeled 'Premium Support' that I don't remember signing up for.\nI apologize for any confusion with your bill, Ms. Mary. I'd be happy to look into that for you. Could you please provide me with your account number?\nSure, it's CN789245.\nThank you for that information. I've pulled up your account details. Can you tell me if you've made any recent changes to your account or services?\nNot that I'm aware of. I haven't touched anything in months.\nThank you for confirming that. I found the source of the charge; it appears that the Premium Support option was automatically added to your account as part of a promotional offer.\nBut I never agreed to that! Shouldn't you ask before adding charges to my account?\nYou're absolutely right, and I sincerely apologize for this oversight. This promotion should have been opt-in, not automatic. I'll remove this charge from your account immediately.\nI appreciate that, but I'm concerned this might happen again in the future.\nI completely understand your concern. I'm going to flag your account to prevent any future automatic additions. Additionally, I'd like to offer you a $20 credit as a goodwill gesture for the inconvenience.\nThat's very kind of you, Tom. Thank you for addressing this so promptly.\nYou're very welcome. I'm processing these changes now. You should see an updated invoice in your email within the next 24 hours. Is there anything else I can help you with today?\nNo, I think that covers everything. I'm satisfied with the resolution.\nI'm glad we could resolve this to your satisfaction. As a final step, I'd like to confirm your preferred contact method for future account notifications. Would you like to stick with email or perhaps add SMS alerts?\nEmail is fine, but adding SMS alerts sounds useful. Can we set that up?\nCertainly, I'd be happy to add SMS alerts to your account. Could you please provide me with the mobile number you'd like to use for these notifications?\nIt's 555-5123-4567.\nThank you. I've added that number to your account for SMS notifications; you'll receive a test message shortly to confirm. Is there anything else you need assistance with?\nNo, that's all. Thank you for your help and for going the extra mile, Tom.\nIt's my pleasure, Ms. Mary. We value your business and appreciate your understanding. Have a wonderful day, and please don't hesitate to contact us if you need any further assistance.\nThank you, Tom. You've been very helpful. Goodbye.";;
+
+        // Unescape literal backslash-n sequences if loaded from string
+        document.getElementById('scriptInput').value = defaultScript.replace(/\\n/g, '\n').replace(/\n/g, '\n');
+
+        let scriptPairs = [];
+        let currentIndex = 0;
+        let lives = 3;
+        let currentCheckpoint = 0;
+        let checkpointIndices = [];
+        let modalMode = 'error';
+
+        function parseScript(rawText) {
+            const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            let pairs = [];
+            for (let i = 0; i < lines.length; i += 2) {
+                if (lines[i+1]) {
+                    pairs.push({
+                        prompt: lines[i],
+                        expected: lines[i+1]
+                    });
+                }
+            }
+            return pairs;
+        }
+
+        function setupCheckpoints(totalPairs) {
+            const third = Math.floor(totalPairs / 3);
+            checkpointIndices = [0, third, third * 2];
+        }
+
+        function getCheckpointLevel(index) {
+            if (index >= checkpointIndices[2]) return 3;
+            if (index >= checkpointIndices[1]) return 2;
+            return 1;
+        }
+
+        function startDrill() {
+            const raw = document.getElementById('scriptInput').value;
+            scriptPairs = parseScript(raw);
+            if (scriptPairs.length < 2) {
+                alert('Please provide a valid script with at least 1 customer/agent exchange.');
+                return;
+            }
+
+            setupCheckpoints(scriptPairs.length);
+            currentIndex = 0;
+            lives = 3;
+            currentCheckpoint = 0;
+
+            document.getElementById('setupScreen').classList.remove('active');
+            document.getElementById('drillScreen').classList.add('active');
+            document.getElementById('statsBar').style.display = 'flex';
+
+            updateStats();
+            renderStage();
+        }
+
+        function updateStats() {
+            document.getElementById('stepCounter').innerText = `${currentIndex + 1} / ${scriptPairs.length}`;
+            let cpNum = getCheckpointLevel(currentIndex);
+            document.getElementById('checkpointIndicator').innerText = `STAGE ${cpNum} (CP${checkpointIndices[cpNum-1] || 0})`;
+            
+            let hearts = '';
+            for (let i = 0; i < lives; i++) hearts += '<span class="heart">♥</span>';
+            for (let i = lives; i < 3; i++) hearts += '<span class="heart" style="opacity:0.25;filter:none;text-shadow:none;">♥</span>';
+            document.getElementById('livesDisplay').innerHTML = hearts;
+        }
+
+        function renderStage() {
+            const chatFlow = document.getElementById('chatFlow');
+            chatFlow.innerHTML = '';
+
+            // Render chat history log in the top box
+            for (let i = 0; i < currentIndex; i++) {
+                chatFlow.innerHTML += `
+                    <div class="msg-container customer">
+                        <div class="msg-label">Customer</div>
+                        <div class="msg customer">${scriptPairs[i].prompt}</div>
+                    </div>
+                    <div class="msg-container user">
+                        <div class="msg-label">You (Agent)</div>
+                        <div class="msg user">${scriptPairs[i].expected}</div>
+                    </div>
+                `;
+            }
+
+            // Display current incoming customer dialog
+            document.getElementById('activePromptText').innerText = scriptPairs[currentIndex].prompt;
+            
+            // Reset and hide reveal box on new stage
+            document.getElementById('revealBox').classList.remove('active');
+            document.getElementById('revealText').innerText = scriptPairs[currentIndex].expected;
+
+            const inputField = document.getElementById('userInputField');
+            inputField.value = '';
+            inputField.focus();
+            chatFlow.scrollTop = chatFlow.scrollHeight;
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitAnswer();
+            }
+        }
+
+        function normalizeText(txt) {
+            return txt.replace(/\s+/g, ' ').trim();
+        }
+
+        function toggleReveal() {
+            const revealBox = document.getElementById('revealBox');
+            const isActive = revealBox.classList.contains('active');
+            // "Show Me" is now free — it no longer costs a life.
+            revealBox.classList.toggle('active', !isActive);
+        }
+
+        function submitAnswer() {
+            const userText = document.getElementById('userInputField').value;
+            const targetText = scriptPairs[currentIndex].expected;
+
+            const isMatch = normalizeText(userText) === normalizeText(targetText);
+
+            if (isMatch) {
+                currentIndex++;
+                if (currentIndex >= scriptPairs.length) {
+                    triggerVictory();
+                } else {
+                    let currentCP = getCheckpointLevel(currentIndex) - 1;
+                    if (currentCP > currentCheckpoint) {
+                        currentCheckpoint = currentCP;
+                    }
+                    updateStats();
+                    renderStage();
+                }
+            } else {
+                lives--;
+                updateStats();
+                if (lives <= 0) {
+                    triggerGameOver();
+                } else {
+                    triggerErrorModal(targetText, userText);
+                }
+            }
+        }
+
+        function triggerErrorModal(correct, provided) {
+            modalMode = 'error';
+            const modal = document.getElementById('modalBox');
+            modal.className = 'modal error';
+            document.getElementById('modalTitle').innerText = 'MISMATCH DETECTED';
+            document.getElementById('modalDesc').innerText = `Grammar or phrasing error. Lives remaining: ${lives}. Conversation continues!`;
+            document.getElementById('modalContent').innerHTML = `<b>Expected:</b><br>${correct}<br><br><b style="color:var(--danger)">You wrote:</b><br>${provided || '(empty)'}`;
+            document.getElementById('modalBtn').innerText = 'CONTINUE DRILL';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function triggerGameOver(customMsg) {
+            modalMode = 'gameover';
+            const modal = document.getElementById('modalBox');
+            modal.className = 'modal gameover';
+            document.getElementById('modalTitle').innerText = 'GAME OVER // OUT OF LIVES';
+            
+            currentIndex = checkpointIndices[currentCheckpoint];
+            lives = 3;
+
+            document.getElementById('modalDesc').innerText = customMsg || `You ran out of lives. Respawning at Checkpoint Stage ${currentCheckpoint + 1} (Index ${currentIndex + 1}).`;
+            document.getElementById('modalContent').innerHTML = `Checkpoint restored with 3 lives. Keep pushing!`;
+            document.getElementById('modalBtn').innerText = 'RESPAWN AT CHECKPOINT';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function triggerVictory() {
+            modalMode = 'victory';
+            const modal = document.getElementById('modalBox');
+            modal.className = 'modal victory';
+            document.getElementById('modalTitle').innerText = 'DRILL COMPLETED // MASTERED';
+            document.getElementById('modalDesc').innerText = 'Flawless execution across all conversation dialogues!';
+            document.getElementById('modalContent').innerHTML = `Total lines memorized: ${scriptPairs.length}. You are a customer service master!`;
+            document.getElementById('modalBtn').innerText = 'PLAY AGAIN';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            
+            if (modalMode === 'victory') {
+                currentIndex = 0;
+                lives = 3;
+                currentCheckpoint = 0;
+                document.getElementById('drillScreen').classList.remove('active');
+                document.getElementById('setupScreen').classList.add('active');
+                document.getElementById('statsBar').style.display = 'none';
+                return;
+            }
+
+            updateStats();
+            renderStage();
+        }
+    </script>
+</body>
+</html>
